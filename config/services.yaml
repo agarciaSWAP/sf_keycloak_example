@@ -47,3 +47,4 @@ services:
         $keycloakClientId: '%app.keycloak_clientid%'
         $algo: '%env(KEYCLOAK_ALGO)%'
         $publicKey: '%env(KEYCLOAK_PK)%'
+        $clockSkewAllowance: '%env(int:KEYCLOAK_CLOCK_SKEW_ALLOWANCE)%'

@@ -12,6 +12,7 @@ final class IdTokenDataExtractor
         private string $keycloakClientId,
         private string $algo,
         private string $publicKey,
+        private int $clockSkewAllowance = 5,
     ) {}
 
     public function extract(string $idToken): IdTokenData
@@ -19,8 +20,8 @@ final class IdTokenDataExtractor
         $decoded = JWT::decode($idToken, new Key($this->publicKey, $this->algo));
 
         $iat = $decoded->iat ?? PHP_INT_MAX;
-        if (time() > $iat) {
-            throw new IdTokenException(sprintf('IdToken iat (%d) must be greater than current time (%d)', $iat, time()));
+        if (time() > $iat + $this->clockSkewAllowance) {
+            throw new IdTokenException(sprintf('IdToken iat (%d) must be greater than current time (%d) with %d seconds allowance', $iat, time(), $this->clockSkewAllowance));
         }
 
         $exp = $decoded->exp ?? 0;
@@ -48,17 +49,18 @@ final class IdTokenDataExtractor
             throw new IdTokenException(sprintf('IdToken azp (%s) must be the same as %s', $azp, $this->keycloakClientId));
         }
 
-        if (!isset($decoded->email, $decoded->preferred_username, $decoded->name, $decoded->realm_access->roles)) {
-            throw new IdTokenException(sprintf('email, username, name, or roles is missing; content: %s', json_encode($decoded)));
+        if (!isset($decoded->email, $decoded->preferred_username, $decoded->name)) {
+            throw new IdTokenException(sprintf('email, username, name is missing; content: %s', json_encode($decoded)));
         }
-
+        
+        $roles = $decoded->roles ?? [];
         return new IdTokenData(
             $exp,
             $sub,
             $decoded->email,
             $decoded->preferred_username,
             $decoded->name,
-            $decoded->realm_access->roles,
+            $roles,
         );
     }
 }
